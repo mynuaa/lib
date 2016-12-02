@@ -284,6 +284,7 @@ class DPlayer {
         // Support HTTP Live Streaming
         if (this.option.video.url.match(/(m3u8)$/i) && Hls.isSupported()) {
             this.element.getElementsByClassName('dplayer-time')[0].style.display = 'none';
+            this.element.getElementsByClassName('dplayer-bar-wrap')[0].style.display = 'none';
             const hls = new Hls();
             hls.attachMedia(this.video);
             hls.on(Hls.Events.MEDIA_ATTACHED, () => {
@@ -1329,7 +1330,9 @@ class DPlayer {
 
             this.playButton.innerHTML = this.getSVG('pause');
 
-            this.video.play();
+            try {
+                this.video.play();
+            } catch (e) {};
             if (this.playedTime) {
                 this.clearTime();
             }
