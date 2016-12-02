@@ -39,8 +39,7 @@ class DPlayer {
 
         this.option = option;
 
-        // const isMobile = /mobile/i.test(window.navigator.userAgent);
-        const isMobile = false;
+        const isMobile = /mobile/i.test(window.navigator.userAgent);
         // compatibility: some mobile browsers don't suppose autoplay
         if (isMobile) {
             this.option.autoplay = false;
@@ -320,6 +319,7 @@ class DPlayer {
         const videoWrap = this.element.getElementsByClassName('dplayer-video-wrap')[0];
         const conMask = this.element.getElementsByClassName('dplayer-controller-mask')[0];
         if (!isMobile) {
+            alert(isMobile);
             videoWrap.addEventListener('click', () => {
                 this.toggle();
             });
@@ -407,15 +407,17 @@ class DPlayer {
         let barWidth;
 
         if (this.option.danmaku) {
-            this.video.addEventListener('seeking', () => {
-                for (let i = 0; i < this.dan.length; i++) {
-                    if (this.dan[i].time >= this.video.currentTime) {
-                        this.danIndex = i;
-                        return;
+            if (!this.option.video.url.match(/(m3u8)$/i)) {
+                this.video.addEventListener('seeking', () => {
+                    for (let i = 0; i < this.dan.length; i++) {
+                        if (this.dan[i].time >= this.video.currentTime) {
+                            this.danIndex = i;
+                            return;
+                        }
+                        this.danIndex = this.dan.length;
                     }
-                    this.danIndex = this.dan.length;
-                }
-            });
+                });
+            }
         }
 
         let lastPlayPos = 0;
@@ -445,19 +447,23 @@ class DPlayer {
                 this.trigger('playing');
             }, 100);
             if (this.option.danmaku) {
-                danmakuTime = setInterval(() => {
-                    let item = this.dan[this.danIndex];
-                    while (item && this.video.currentTime >= parseFloat(item.time)) {
-                        danmakuIn(item.text, item.color, item.type);
-                        item = this.dan[++this.danIndex];
-                    }
-                }, 0);
+                if (!this.option.video.url.match(/(m3u8)$/i)) {
+                    danmakuTime = setInterval(() => {
+                        let item = this.dan[this.danIndex];
+                        while (item && this.video.currentTime >= parseFloat(item.time)) {
+                            danmakuIn(item.text, item.color, item.type);
+                            item = this.dan[++this.danIndex];
+                        }
+                    }, 0);
+                }
             }
         };
         this.clearTime = () => {
             clearInterval(this.playedTime);
             if (this.option.danmaku) {
-                clearInterval(danmakuTime);
+                if (!this.option.video.url.match(/(m3u8)$/i)) {
+                    clearInterval(danmakuTime);
+                }
             }
         };
 
@@ -693,33 +699,37 @@ class DPlayer {
                 if (showDanToggle.checked) {
                     showdan = true;
                     if (this.option.danmaku) {
-                        for (let i = 0; i < this.dan.length; i++) {
-                            if (this.dan[i].time >= this.video.currentTime) {
-                                this.danIndex = i;
-                                break;
+                        if (!this.option.video.url.match(/(m3u8)$/i)) {
+                            for (let i = 0; i < this.dan.length; i++) {
+                                if (this.dan[i].time >= this.video.currentTime) {
+                                    this.danIndex = i;
+                                    break;
+                                }
+                                this.danIndex = this.dan.length;
                             }
-                            this.danIndex = this.dan.length;
+                            danmakuTime = setInterval(() => {
+                                let item = this.dan[this.danIndex];
+                                while (item && this.video.currentTime >= parseFloat(item.time)) {
+                                    danmakuIn(item.text, item.color, item.type);
+                                    item = this.dan[++this.danIndex];
+                                }
+                            }, 0);
                         }
-                        danmakuTime = setInterval(() => {
-                            let item = this.dan[this.danIndex];
-                            while (item && this.video.currentTime >= parseFloat(item.time)) {
-                                danmakuIn(item.text, item.color, item.type);
-                                item = this.dan[++this.danIndex];
-                            }
-                        }, 0);
                     }
                 }
                 else {
                     showdan = false;
                     if (this.option.danmaku) {
-                        clearInterval(danmakuTime);
-                        danContainer.innerHTML = `<div class="dplayer-danmaku-item  dplayer-danmaku-item--demo"></div>`;
-                        this.danTunnel = {
-                            right: {},
-                            top: {},
-                            bottom: {}
-                        };
-                        this.itemDemo = this.element.getElementsByClassName('dplayer-danmaku-item')[0];
+                        if (!this.option.video.url.match(/(m3u8)$/i)) {
+                            clearInterval(danmakuTime);
+                            danContainer.innerHTML = `<div class="dplayer-danmaku-item  dplayer-danmaku-item--demo"></div>`;
+                            this.danTunnel = {
+                                right: {},
+                                top: {},
+                                bottom: {}
+                            };
+                            this.itemDemo = this.element.getElementsByClassName('dplayer-danmaku-item')[0];
+                        }
                     }
                 }
                 closeSetting();
@@ -942,26 +952,41 @@ class DPlayer {
         if (this.option.danmaku) {
             // live danmaku
             if (this.option.video.url.match(/(m3u8)$/i) && Hls.isSupported()) {
-                const xhr = new XMLHttpRequest();
+                if (this.option.autoplay && !isMobile) {
+                    this.play();
+                }
+                else if (isMobile) {
+                    this.pause();
+                }
                 let lastId = 0;
+                const self = this;
                 setInterval(function () {
+                    const xhr = new XMLHttpRequest();
                     xhr.onreadystatechange = () => {
                         if (xhr.readyState === 4) {
                             if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
                                 const response = JSON.parse(xhr.responseText);
-                                console.log(response);
                                 if (response.code !== 1) {
                                     alert(response.msg);
                                 }
                                 else {
-                                    this.dan = response.danmaku.sort((a, b) => a.time - b.time);
-                                    this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
-                                    // autoplay for live
-                                    if (!isMobile) {
-                                        this.play();
-                                    }
-                                    else if (isMobile) {
-                                        this.pause();
+                                    self.dan = response.danmaku.sort((a, b) => a.id - b.id);
+                                    self.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
+                                    if (self.dan.length > 0) {
+                                        const newId = parseInt(self.dan[self.dan.length - 1].id);
+                                        if (lastId < newId) {
+                                            lastId = newId;
+                                        }
+                                        let danIndex = 0;
+                                        setInterval(function () {
+                                            if (danIndex < self.dan.length) {
+                                                const t = self.dan[danIndex];
+                                                danIndex++;
+                                                if (t) {
+                                                    danmakuIn(htmlEncode(t.text), t.color, t.type);
+                                                }
+                                            }
+                                        }, parseInt(3000 / self.dan.length));
                                     }
                                 }
                             }
@@ -970,9 +995,9 @@ class DPlayer {
                             }
                         }
                     };
-                    let apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}&lastId=${lastId}`;
-                    if (this.option.danmaku.maximum) {
-                        apiurl += `&max=${this.option.danmaku.maximum}`;
+                    let apiurl = `${self.option.danmaku.api}&player=${self.option.danmaku.id}&lastId=${lastId}`;
+                    if (self.option.danmaku.maximum) {
+                        apiurl += `&max=${self.option.danmaku.maximum}`;
                     }
                     xhr.open('get', apiurl, true);
                     xhr.send(null);
