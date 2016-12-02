@@ -939,73 +939,112 @@ class DPlayer {
 
         // danmaku
         if (this.option.danmaku) {
-            this.danIndex = 0;
-            const xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = () => {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
-                        const response = JSON.parse(xhr.responseText);
-                        if (response.code !== 1) {
-                            alert(response.msg);
-                        }
-                        else {
-                            if (this.option.danmaku.addition) {
-                                xhr.onreadystatechange = () => {
-                                    if (xhr.readyState === 4) {
-                                        if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
-                                            const response2 = JSON.parse(xhr.responseText);
-                                            if (response2.code !== 1) {
-                                                alert(response2.msg);
-                                            }
-                                            else {
-                                                this.dan = response.danmaku.concat(response2.danmaku).sort((a, b) => a.time - b.time);
-                                                this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
-
-                                                // autoplay
-                                                if (this.option.autoplay && !isMobile) {
-                                                    this.play();
-                                                }
-                                                else if (isMobile) {
-                                                    this.pause();
-                                                }
-                                            }
-                                        }
-                                        else {
-                                            console.log('Request was unsuccessful: ' + xhr.status);
-                                        }
+            // live danmaku
+            if (this.option.video.url.match(/(m3u8)$/i) && Hls.isSupported()) {
+                const xhr = new XMLHttpRequest();
+                let lastId = 0;
+                setInterval(function () {
+                    xhr.onreadystatechange = () => {
+                        if (xhr.readyState === 4) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
+                                const response = JSON.parse(xhr.responseText);
+                                console.log(response);
+                                if (response.code !== 1) {
+                                    alert(response.msg);
+                                }
+                                else {
+                                    this.dan = response.danmaku.sort((a, b) => a.time - b.time);
+                                    this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
+                                    // autoplay for live
+                                    if (!isMobile) {
+                                        this.play();
                                     }
-                                };
-                                xhr.open('get', this.option.danmaku.addition[0], true);
-                                xhr.send(null);
+                                    else if (isMobile) {
+                                        this.pause();
+                                    }
+                                }
                             }
                             else {
-                                this.dan = response.danmaku.sort((a, b) => a.time - b.time);
-                                this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
+                                console.log('Request was unsuccessful: ' + xhr.status);
+                            }
+                        }
+                    };
+                    let apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}&lastId=${lastId}`;
+                    if (this.option.danmaku.maximum) {
+                        apiurl += `&max=${this.option.danmaku.maximum}`;
+                    }
+                    xhr.open('get', apiurl, true);
+                    xhr.send(null);
+                }, 3000);
+            } else {
+                this.danIndex = 0;
+                const xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.code !== 1) {
+                                alert(response.msg);
+                            }
+                            else {
+                                if (this.option.danmaku.addition) {
+                                    xhr.onreadystatechange = () => {
+                                        if (xhr.readyState === 4) {
+                                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 304) {
+                                                const response2 = JSON.parse(xhr.responseText);
+                                                if (response2.code !== 1) {
+                                                    alert(response2.msg);
+                                                }
+                                                else {
+                                                    this.dan = response.danmaku.concat(response2.danmaku).sort((a, b) => a.time - b.time);
+                                                    this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
 
-                                // autoplay
-                                if (this.option.autoplay && !isMobile) {
-                                    this.play();
+                                                    // autoplay
+                                                    if (this.option.autoplay && !isMobile) {
+                                                        this.play();
+                                                    }
+                                                    else if (isMobile) {
+                                                        this.pause();
+                                                    }
+                                                }
+                                            }
+                                            else {
+                                                console.log('Request was unsuccessful: ' + xhr.status);
+                                            }
+                                        }
+                                    };
+                                    xhr.open('get', this.option.danmaku.addition[0], true);
+                                    xhr.send(null);
                                 }
-                                else if (isMobile) {
-                                    this.pause();
+                                else {
+                                    this.dan = response.danmaku.sort((a, b) => a.time - b.time);
+                                    this.element.getElementsByClassName('dplayer-danloading')[0].style.display = 'none';
+
+                                    // autoplay
+                                    if (this.option.autoplay && !isMobile) {
+                                        this.play();
+                                    }
+                                    else if (isMobile) {
+                                        this.pause();
+                                    }
                                 }
                             }
                         }
+                        else {
+                            console.log('Request was unsuccessful: ' + xhr.status);
+                        }
                     }
-                    else {
-                        console.log('Request was unsuccessful: ' + xhr.status);
-                    }
+                };
+                let apiurl;
+                if (this.option.danmaku.maximum) {
+                    apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}&max=${this.option.danmaku.maximum}`;
                 }
-            };
-            let apiurl;
-            if (this.option.danmaku.maximum) {
-                apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}&max=${this.option.danmaku.maximum}`;
+                else {
+                    apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}`;
+                }
+                xhr.open('get', apiurl, true);
+                xhr.send(null);
             }
-            else {
-                apiurl = `${this.option.danmaku.api}&player=${this.option.danmaku.id}`;
-            }
-            xhr.open('get', apiurl, true);
-            xhr.send(null);
         }
         else {
             // autoplay
