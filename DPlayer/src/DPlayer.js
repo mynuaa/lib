@@ -319,7 +319,6 @@ class DPlayer {
         const videoWrap = this.element.getElementsByClassName('dplayer-video-wrap')[0];
         const conMask = this.element.getElementsByClassName('dplayer-controller-mask')[0];
         if (!isMobile) {
-            alert(isMobile);
             videoWrap.addEventListener('click', () => {
                 this.toggle();
             });
