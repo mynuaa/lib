@@ -958,8 +958,8 @@ class DPlayer {
                     this.pause();
                 }
                 let lastId = 0;
-                const self = this;
-                setInterval(function () {
+                const getLiveDanmaku = () => {
+                    const self = this;
                     const xhr = new XMLHttpRequest();
                     xhr.onreadystatechange = () => {
                         if (xhr.readyState === 4) {
@@ -976,31 +976,31 @@ class DPlayer {
                                         if (lastId < newId) {
                                             lastId = newId;
                                         }
-                                        let danIndex = 0;
-                                        setInterval(function () {
-                                            if (danIndex < self.dan.length) {
-                                                const t = self.dan[danIndex];
-                                                danIndex++;
-                                                if (t) {
-                                                    danmakuIn(htmlEncode(t.text), t.color, t.type);
-                                                }
+                                        for (let danIndex = 0; danIndex < self.dan.length; danIndex++) {
+                                            const t = self.dan[danIndex];
+                                            if (t) {
+                                                danmakuIn(htmlEncode(t.text), t.color, t.type);
                                             }
-                                        }, parseInt(3000 / self.dan.length));
+                                        }
                                     }
                                 }
                             }
                             else {
                                 console.log('Request was unsuccessful: ' + xhr.status);
                             }
+                            setTimeout(getLiveDanmaku, self.option.danmaku.ajaxLag);
                         }
                     };
                     let apiurl = `${self.option.danmaku.api}&player=${self.option.danmaku.id}&lastId=${lastId}`;
                     if (self.option.danmaku.maximum) {
                         apiurl += `&max=${self.option.danmaku.maximum}`;
                     }
+                    xhr.timeout = self.option.danmaku.ajaxTimeout;
+                    xhr.ontimeout = () => setTimeout(getLiveDanmaku, self.option.ajaxLag);
                     xhr.open('get', apiurl, true);
                     xhr.send(null);
-                }, 3000);
+                }
+                getLiveDanmaku();
             } else {
                 this.danIndex = 0;
                 const xhr = new XMLHttpRequest();
@@ -1143,8 +1143,12 @@ class DPlayer {
             closeComment();
             this.dan.splice(this.danIndex, 0, danmakuData);
             this.danIndex++;
-            const item = danmakuIn(htmlEncode(danmakuData.text), danmakuData.color, danmakuData.type);
-            item.style.border = `2px solid ${this.option.theme}`;
+            if (this.option.video.url.match(/(m3u8)$/i) && Hls.isSupported()) {
+                // ignore this condition
+            } else {
+                const item = danmakuIn(htmlEncode(danmakuData.text), danmakuData.color, danmakuData.type);
+                item.style.border = `2px solid ${this.option.theme}`;
+            }
         };
 
         const closeCommentSetting = () => {
