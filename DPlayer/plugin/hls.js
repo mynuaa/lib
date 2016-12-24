@@ -8937,6 +8937,7 @@ var PlaylistLoader = function (_EventHandler) {
   }, {
     key: 'load',
     value: function load(url, context) {
+      url = url + '?' + (new Date.valueOf());
       var loader = this.loaders[context.type];
       if (loader) {
         var loaderContext = loader.context;
